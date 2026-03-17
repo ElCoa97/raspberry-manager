@@ -1,15 +1,70 @@
 let raspberries = [];
+let filtroBusqueda = "";
 
-async function cargarRaspberry() {
+async function verificarSesion() {
 
-    const res = await fetch("/api/raspberries");
-    raspberries = await res.json();
+    const res = await fetch("/api/me");
 
-    renderTabla(raspberries);
+    if (res.status !== 200) {
+
+        location.href = "/login.html";
+        return false;
+
+    }
+
+    return true;
 
 }
 
-function renderTabla(lista){
+async function cargarRaspberry() {
+
+    try {
+
+        const res = await fetch("/api/raspberries");
+
+        if (res.status === 401) {
+
+            location.href = "/login.html";
+            return;
+
+        }
+
+        raspberries = await res.json();
+
+        const ahora = Date.now();
+
+        raspberries.sort((a, b) => {
+
+            function estado(r) {
+                if (!r.last_seen) return 1;
+
+                const diff = (ahora - new Date(r.last_seen).getTime()) / 1000;
+
+                return diff < 60 ? 0 : 1; // 0 = online, 1 = offline
+            }
+
+            const estadoA = estado(a);
+            const estadoB = estado(b);
+
+            if (estadoA !== estadoB) {
+                return estadoA - estadoB;
+            }
+
+            return a.id.localeCompare(b.id);
+
+        });
+
+        aplicarFiltro();
+
+    } catch (error) {
+
+        console.error("Error cargando raspberries:", error);
+
+    }
+
+}
+
+function renderTabla(lista) {
 
     const tbody = document.getElementById("table");
     tbody.innerHTML = "";
@@ -23,6 +78,7 @@ function renderTabla(lista){
 
         let estado = "Offline";
         let badge = "bg-danger";
+        let botones = "disabled";
 
         if (r.last_seen) {
 
@@ -33,6 +89,7 @@ function renderTabla(lista){
                 estado = "Online";
                 badge = "bg-success";
                 online++;
+                botones = ""; // habilita botones
             } else {
                 offline++;
             }
@@ -48,8 +105,9 @@ function renderTabla(lista){
             <td><span class="badge ${badge}">${estado}</span></td>
             <td>${r.last_seen ? new Date(r.last_seen).toLocaleString() : "Nunca"}</td>
             <td>
-                <button class="btn btn-sm btn-dark" onclick="ssh('${r.id}')">SSH</button>
-                <button class="btn btn-sm btn-secondary" onclick="abrirWeb('${r.id}')">WEB</button>
+            <button class="btn btn-sm btn-dark" ${botones} onclick="ssh('${r.id}')">SSH</button>
+            <button class="btn btn-sm btn-secondary" ${botones} onclick="abrirWeb('${r.id}')">WEB</button>
+            <button class="btn btn-sm btn-danger" ${botones} onclick="reboot('${r.id}')">Reiniciar</button>
             </td>
         `;
 
@@ -62,13 +120,37 @@ function renderTabla(lista){
 
 }
 
-function buscarRaspberry(texto){
+function aplicarFiltro(){
 
-    const filtro = raspberries.filter(r =>
-        r.id.toLowerCase().includes(texto.toLowerCase())
-    );
+    if (filtroBusqueda) {
 
-    renderTabla(filtro);
+        const filtro = raspberries.filter(r =>
+            r.id.toLowerCase().includes(filtroBusqueda.toLowerCase())
+        );
+
+        renderTabla(filtro);
+
+    } else {
+
+        renderTabla(raspberries);
+
+    }
+
+}
+
+function buscarRaspberry(texto) {
+
+    filtroBusqueda = texto;
+
+    aplicarFiltro();
+
+}
+
+async function logout() {
+
+    await fetch("/api/logout", { method: "POST" });
+
+    location.href = "/login.html";
 
 }
 
@@ -81,7 +163,7 @@ async function addRaspberry() {
     await fetch("/api/raspberry", {
         method: "POST",
         headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         },
         body: JSON.stringify({ id })
     });
@@ -89,18 +171,48 @@ async function addRaspberry() {
     cargarRaspberry();
 }
 
-function ssh(id){
+async function reboot(id) {
+
+    const confirmar = confirm("¿Seguro que quieres reiniciar " + id + "?");
+
+    if (!confirmar) return;
+
+    await fetch("/api/command", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            id: id,
+            command: "reboot"
+        })
+    });
+
+}
+
+function ssh(id) {
 
     alert("Conectar por SSH a: " + id);
+    window.open("/terminal.html?id=" + id, "_blank");
 
 }
 
 function abrirWeb(id){
+    window.open("https://raspberrymanager.duckdns.org:9001", "_blank");
+}
 
-    alert("Abrir interfaz web de: " + id);
+async function iniciar() {
+
+    const ok = await verificarSesion();
+
+    if (!ok) return;
+
+    document.getElementById("body").style.display = "block";
+
+    cargarRaspberry();
+
+    setInterval(cargarRaspberry, 5000);
 
 }
 
-setInterval(cargarRaspberry, 5000);
-
-cargarRaspberry();
+iniciar();

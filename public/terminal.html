@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+<meta charset="UTF-8">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css">
+
+<style>
+
+body{
+background:black;
+margin:0;
+font-family:Arial, Helvetica, sans-serif;
+}
+
+/* BARRA SUPERIOR */
+
+.navbar{
+background:#b11217;
+height:50px;
+display:flex;
+align-items:center;
+padding-left:20px;
+color:white;
+font-weight:bold;
+}
+
+/* TERMINAL */
+
+#terminal{
+height:calc(100vh - 50px);
+width:100%;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="navbar" id="title">
+Terminal
+</div>
+
+<div id="terminal"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
+
+<script>
+
+/* obtener id */
+
+const params = new URLSearchParams(window.location.search);
+const id = params.get("id");
+
+/* colocar titulo */
+
+document.getElementById("title").innerText =
+"Terminal - " + id;
+
+/* terminal */
+
+const term = new Terminal({
+    cursorBlink: true
+});
+
+const fitAddon = new FitAddon.FitAddon();
+
+term.loadAddon(fitAddon);
+
+term.open(document.getElementById("terminal"));
+
+fitAddon.fit();
+
+/* websocket */
+
+const protocol = location.protocol === "https:" ? "wss://" : "ws://";
+
+const ws = new WebSocket(protocol + location.host + "/terminal?id=" + id);
+
+ws.onmessage = (event)=>{
+    term.write(event.data);
+};
+
+term.onData(data=>{
+    ws.send(data);
+});
+
+/* auto resize */
+
+window.addEventListener("resize", () => {
+    fitAddon.fit();
+});
+
+</script>
+
+</body>
+
+</html>

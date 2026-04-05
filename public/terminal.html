@@ -3,99 +3,127 @@
 
 <head>
 
-<meta charset="UTF-8">
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="/img/logo.png">
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css">
 
-<style>
+    <style>
+        body {
+            background: black;
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+        }
 
-body{
-background:black;
-margin:0;
-font-family:Arial, Helvetica, sans-serif;
-}
+        /* BARRA SUPERIOR */
 
-/* BARRA SUPERIOR */
+        .navbar {
+            background: #b11217;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            color: white;
+            font-weight: bold;
+            box-sizing: border-box;
+        }
 
-.navbar{
-background:#b11217;
-height:50px;
-display:flex;
-align-items:center;
-padding-left:20px;
-color:white;
-font-weight:bold;
-}
+        /* TERMINAL */
 
-/* TERMINAL */
-
-#terminal{
-height:calc(100vh - 50px);
-width:100%;
-}
-
-</style>
+        #terminal {
+            height: calc(100vh - 50px);
+            width: 100%;
+        }
+    </style>
 
 </head>
 
 <body>
 
-<div class="navbar" id="title">
-Terminal
-</div>
+    <div class="navbar">
+        <span id="titleText">Terminal</span>
+        <span id="terminalUser" style="font-weight: normal; font-size: 15px;">👤 Cargando...</span>
+    </div>
 
-<div id="terminal"></div>
+    <div id="terminal"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
 
-<script>
+    <script>
 
-/* obtener id */
+        /* obtener id */
 
-const params = new URLSearchParams(window.location.search);
-const id = params.get("id");
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get("id");
+        const finca = params.get("finca");
 
-/* colocar titulo */
+        /* colocar titulo */
 
-document.getElementById("title").innerText =
-"Terminal - " + id;
+        document.getElementById("titleText").innerText =
+            (finca ? finca + " | " : "") + "Terminal - " + id;
 
-/* terminal */
+        /* colocar usuario logueado */
 
-const term = new Terminal({
-    cursorBlink: true
-});
+        async function fetchSessionUser() {
+            try {
+                const res = await fetch("/api/me");
+                if (res.status === 200) {
+                    const data = await res.json();
+                    if (data.user && data.user.username) {
+                        document.getElementById("terminalUser").innerText = "👤 " + data.user.username;
+                    }
+                }
+            } catch (e) { }
+        }
+        fetchSessionUser();
 
-const fitAddon = new FitAddon.FitAddon();
+        /* terminal */
 
-term.loadAddon(fitAddon);
+        const term = new Terminal({
+            cursorBlink: true
+        });
 
-term.open(document.getElementById("terminal"));
+        const fitAddon = new FitAddon.FitAddon();
 
-fitAddon.fit();
+        term.loadAddon(fitAddon);
 
-/* websocket */
+        term.open(document.getElementById("terminal"));
 
-const protocol = location.protocol === "https:" ? "wss://" : "ws://";
+        fitAddon.fit();
 
-const ws = new WebSocket(protocol + location.host + "/terminal?id=" + id);
+        /* websocket */
 
-ws.onmessage = (event)=>{
-    term.write(event.data);
-};
+        const protocol = location.protocol === "https:" ? "wss://" : "ws://";
 
-term.onData(data=>{
-    ws.send(data);
-});
+        const ws = new WebSocket(protocol + location.host + "/terminal?id=" + id);
 
-/* auto resize */
+        ws.onmessage = (event) => {
+            term.write(event.data);
+        };
 
-window.addEventListener("resize", () => {
-    fitAddon.fit();
-});
+        ws.onopen = () => {
+            ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
+        };
 
-</script>
+        term.onData(data => {
+            ws.send(JSON.stringify({ type: "input", data: data }));
+        });
+
+        term.onResize(size => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "resize", cols: size.cols, rows: size.rows }));
+            }
+        });
+
+        /* auto resize */
+
+        window.addEventListener("resize", () => {
+            fitAddon.fit();
+        });
+
+    </script>
 
 </body>
 

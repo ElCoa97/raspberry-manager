@@ -19,11 +19,12 @@ sudo apt update
 sudo apt install -y nginx certbot python3-certbot-nginx nodejs npm
 ```
 
-### 2. Configuración del Entorno (`.env`)
-Crea un archivo `.env` en la raíz del proyecto para conectar las bases de datos y configurar la seguridad JWT.
+### 2. Configuración del Proyecto y Dependencias
+Clona o sube tu proyecto al servidor, entra a la carpeta y ejecuta:
 
 ```bash
-npm install dotenv
+npm install
+npm install -g pm2
 nano .env
 ```
 Pegar el siguiente contenido (recuerda reemplazar los datos de las bases de datos):
@@ -44,6 +45,15 @@ DB2_NAME=tu_base_datos_sioma
 # Configuración de Seguridad
 JWT_SECRET=d18w651phbn4sadaqwdbgolk745asdc7x1a8sdfa87q85az4vb814mfg
 PORT=3000
+```
+
+### 3. Iniciar el Servidor de Fondo (PM2)
+Usaremos el administrador de procesos PM2 para mantener Node.js encendido 24/7 y que reviva automáticamente si el servidor se reinicia:
+
+```bash
+pm2 start server.js --name "raspberry-manager"
+pm2 save
+pm2 startup
 ```
 
 ---

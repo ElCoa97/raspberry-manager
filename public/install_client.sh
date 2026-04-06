@@ -19,17 +19,23 @@ fi
 
 touch /home/pi/tunel_port.txt
 
+echo "Buscando y eliminando AnyDesk para ahorrar memoria RAM..."
+sudo systemctl stop anydesk || true
+sudo systemctl disable anydesk || true
+sudo apt-get purge -y anydesk || true
+sudo apt-get autoremove -y || true
+
 echo "[2/4] Descargando la última versión del código Python..."
 cd /home/pi/cliente_gestor
 wget -O client.py https://raspberrymanager.duckdns.org/client.py
 
 echo "[3/4] Instalando librería de WebSocket para Python..."
 # Descargamos el paquete de forma local a través de nuestro propio servidor (Para fincas sin internet abierto)
-wget https://raspberrymanager.duckdns.org/libraries/websocket_client-1.9.0-py3-none-any.whl
+wget https://raspberrymanager.duckdns.org/libraries/websocket_client-1.3.3-py3-none-any.whl
 # Lo instalamos localmente garantizando compatibilidad con versiones antiguas
-pip3 install ./websocket_client-1.9.0-py3-none-any.whl --user || sudo pip3 install ./websocket_client-1.9.0-py3-none-any.whl
+pip3 install ./websocket_client-1.3.3-py3-none-any.whl --user || sudo pip3 install ./websocket_client-1.3.3-py3-none-any.whl
 # Limpiamos
-rm websocket_client-1.9.0-py3-none-any.whl
+rm websocket_client-1.3.3-py3-none-any.whl
 
 echo "[4/4] Instalando Auto-Arranque Nativo de Linux (SystemD)..."
 # Dejamos de depender del gordo PM2 de Node y usamos el corazón nativo de Linux

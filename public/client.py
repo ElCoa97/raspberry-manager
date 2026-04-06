@@ -17,7 +17,7 @@ except ImportError:
     print("Falta la libreria de WebSockets. Instálala ejecutando: pip3 install websocket-client")
     sys.exit(1)
 
-SERVER = "wss://raspberrymanager.duckdns.org"
+SERVER = "wss://dominio_sioma.com"
 
 RASPBERRY_ID = "unknown"
 ws_app = None
@@ -229,7 +229,7 @@ def on_message(ws, message):
             except:
                 pass
                 
-        cmd = f"timeout 30m ssh -o StrictHostKeyChecking=no -o ExitOnForwardFailure=yes -R 0.0.0.0:{puerto}:192.168.4.1:80 ubuntu@raspberrymanager.duckdns.org -N"
+        cmd = f"timeout 30m ssh -o StrictHostKeyChecking=no -o ExitOnForwardFailure=yes -R 0.0.0.0:{puerto}:192.168.4.1:80 ubuntu@dominio_sioma.com -N"
         subprocess.Popen(cmd, shell=True)
         with open(PORT_FILE, "w") as f:
             f.write(str(puerto))

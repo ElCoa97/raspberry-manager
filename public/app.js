@@ -360,7 +360,7 @@ async function abrirWeb(id, finca) {
     if (data.success) {
         // Abrir la pestaña apuntando al puerto remoto asignado
         const puerto = data.puerto;
-        window.open(`http://dominio_sioma.com:${puerto}`, "_blank");
+        window.open(`http://raspberrymanager.duckdns.org:${puerto}`, "_blank");
     } else {
         alert("Error al abrir túnel: " + (data.message || "Desconocido"));
     }

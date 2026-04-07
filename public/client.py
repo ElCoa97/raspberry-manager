@@ -10,6 +10,9 @@ import select
 import http.client
 import base64
 import signal
+import fcntl
+import termios
+import struct
 
 try:
     import websocket
@@ -17,7 +20,7 @@ except ImportError:
     print("Falta la libreria de WebSockets. Instálala ejecutando: pip3 install websocket-client")
     sys.exit(1)
 
-SERVER = "wss://dominio_sioma.com"
+SERVER = "wss://raspberrymanager.duckdns.org"
 
 RASPBERRY_ID = "unknown"
 ws_app = None
@@ -46,6 +49,8 @@ except Exception as e:
 shell_fd = None
 shell_pid = None
 terminal_thread = None
+term_cols = 80
+term_rows = 24
 
 def get_mac_address():
     try:
@@ -96,7 +101,7 @@ def terminal_read_worker(fd):
         shell_pid = None
 
 def on_message(ws, message):
-    global shell_fd, shell_pid, terminal_thread
+    global shell_fd, shell_pid, terminal_thread, term_cols, term_rows
     
     try:
         msg = json.loads(message)
@@ -171,11 +176,18 @@ def on_message(ws, message):
         if pid == 0:
             env = os.environ.copy()
             env["TERM"] = "xterm-color"
+            env["COLUMNS"] = str(term_cols)
+            env["LINES"] = str(term_rows)
             os.chdir(os.environ.get("HOME", "/root"))
             os.execvpe("bash", ["bash"], env)
         else:
             shell_pid = pid
             shell_fd = fd
+            try:
+                winsize = struct.pack("HHHH", term_rows, term_cols, 0, 0)
+                fcntl.ioctl(shell_fd, termios.TIOCSWINSZ, winsize)
+            except Exception:
+                pass
             terminal_thread = threading.Thread(target=terminal_read_worker, args=(fd,), daemon=True)
             terminal_thread.start()
 
@@ -184,6 +196,20 @@ def on_message(ws, message):
             try:
                 os.write(shell_fd, msg.get("data", "").encode("utf-8"))
             except Exception as e:
+                pass
+
+    elif msg_type == "terminal_resize":
+        try:
+            term_cols = int(msg.get("cols", 80))
+            term_rows = int(msg.get("rows", 24))
+        except (TypeError, ValueError):
+            term_cols, term_rows = 80, 24
+            
+        if shell_fd is not None:
+            try:
+                winsize = struct.pack("HHHH", term_rows, term_cols, 0, 0)
+                fcntl.ioctl(shell_fd, termios.TIOCSWINSZ, winsize)
+            except Exception:
                 pass
 
     elif msg_type in ["terminal_stop", "terminal_close"]:
@@ -229,7 +255,7 @@ def on_message(ws, message):
             except:
                 pass
                 
-        cmd = f"timeout 30m ssh -o StrictHostKeyChecking=no -o ExitOnForwardFailure=yes -R 0.0.0.0:{puerto}:192.168.4.1:80 ubuntu@dominio_sioma.com -N"
+        cmd = f"timeout 30m ssh -o StrictHostKeyChecking=no -o ExitOnForwardFailure=yes -R 0.0.0.0:{puerto}:192.168.4.1:80 ubuntu@raspberrymanager.duckdns.org -N"
         subprocess.Popen(cmd, shell=True)
         with open(PORT_FILE, "w") as f:
             f.write(str(puerto))
@@ -377,7 +403,7 @@ def connect():
                               on_error=on_error,
                               on_close=on_close)
                               
-    ws_app.run_forever()
+    ws_app.run_forever(ping_interval=20, ping_timeout=10, ping_payload="keepalive")
 
 if __name__ == "__main__":
     t = threading.Thread(target=heartbeat_worker, daemon=True)

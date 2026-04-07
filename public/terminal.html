@@ -105,6 +105,13 @@
 
         ws.onopen = () => {
             ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
+
+            // Keep-alive contra timeouts agresivos de 30s en Nginx/Proxies
+            setInterval(() => {
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: "input", data: "" }));
+                }
+            }, 15000);
         };
 
         term.onData(data => {

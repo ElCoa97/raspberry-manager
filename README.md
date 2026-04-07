@@ -23,9 +23,9 @@ sudo apt install -y nginx certbot python3-certbot-nginx nodejs npm
 Clona o sube tu proyecto al servidor, entra a la carpeta y ejecuta:
 
 ```bash
-npm install
-npm install -g pm2
-nano .env
+sudo npm install
+sudo npm install -g pm2
+sudo nano .env
 ```
 Pegar el siguiente contenido (recuerda reemplazar los datos de las bases de datos):
 
@@ -51,9 +51,9 @@ PORT=3000
 Usaremos el administrador de procesos PM2 para mantener Node.js encendido 24/7 y que reviva automáticamente si el servidor se reinicia:
 
 ```bash
-pm2 start server.js --name "raspberry-manager"
-pm2 save
-pm2 startup
+sudo pm2 start server.js --name "raspberry-manager"
+sudo pm2 save
+sudo pm2 startup
 ```
 
 ---

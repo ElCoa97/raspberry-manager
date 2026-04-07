@@ -959,6 +959,21 @@ termWSS.on("connection", (ws, req) => {
           /* --- AUDITORIA DE COMANDOS SSH --- */
           for (let i = 0; i < msg.data.length; i++) {
             const char = msg.data[i];
+
+            // Atrapamos inicios de secuencias de escape (Flechas Arriba/Abajo)
+            if (char === '\x1b') {
+              ws.escMode = true;
+              continue;
+            }
+
+            // Si estamos ignorando una secuencia, la soltamos cuando encontremos su ultima letra
+            if (ws.escMode) {
+              if ((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || char === '~') {
+                ws.escMode = false;
+              }
+              continue;
+            }
+
             if (char === '\r' || char === '\n') {
               const cmd = ws.cmdBuffer.trim();
               if (cmd.length > 0) {
